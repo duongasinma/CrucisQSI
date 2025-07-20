@@ -9,5 +9,6 @@ namespace BotTradingCryto.Application
     public interface IBaseCryptoService
     {
         Task<double> GetCurrentPriceAsync(string symbol);
+        Task<double> GetTradingFeeAsynce(string symbol);
     }
 }

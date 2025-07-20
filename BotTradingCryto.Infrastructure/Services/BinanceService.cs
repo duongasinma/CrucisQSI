@@ -96,7 +96,18 @@ namespace BotTradingCrypto.Infrastructure.Services
                 throw new Exception("Failed to fetch current price from Binance.");
             }
         }
-       
+        public async Task<double> GetTradingFeeAsynce(string symbol)
+        {
+            try
+            {
+                var fee = await _restClient.SpotApi.Account.GetTradeFeeAsync(symbol);
+                return (double)(fee.Data.FirstOrDefault()?.MakerFee??0);
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+        }
         public async Task ConnectSocketTradingAsync(string symbol, int num)
         {
             Console.WriteLine($"Subscribing to {symbol} trade updates...");
@@ -155,7 +166,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                 _ = Task.Delay(250, ct).ContinueWith(_ => _throttle.Release());
             }
         }
-        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, CancellationToken ct = default)
+        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, Guid orderBookId, CancellationToken ct = default)
         {
             if (_userDataSubscriptionId.HasValue)
             {

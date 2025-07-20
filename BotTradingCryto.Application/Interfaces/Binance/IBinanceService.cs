@@ -11,7 +11,7 @@ namespace BotTradingCrypto.Application
         Task ConnectSocketTradingAsync(string symbol, int num);
         Task CancelAllOrderAsync();
         Task<int> SubscribeMiniTickerAsync(string symbol, Action<double, Guid> onData, Guid orderBookId,CancellationToken ct = default);
-        Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, CancellationToken ct = default);
+        Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, Guid orderBookId, CancellationToken ct = default);
         Task UnsubscribeMiniTickerAsync(int subscribeId);
         Task UnsubscribeUserDataAsync();
         Task<int> GetTickSize(string symbol);

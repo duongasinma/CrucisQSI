@@ -22,7 +22,7 @@ namespace BotTradingCryto.Worker
                 //await tradingService.ConnectSocketTradingAsync("BTCUSDT");
                 _ = Task.Run(async () =>
                 {
-                    await tradingService.ConnectSocketTradingAsync("BTCUSDT");
+                    //await tradingService.ConnectSocketTradingAsync("BTCUSDT");
                 });
 
             }

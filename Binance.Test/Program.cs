@@ -18,8 +18,6 @@ namespace BinanceGridTradingBotExample
 
         static async Task Main(string[] args)
         {
-            double a = 0.1;
-            double b = 0.2;
             // Replace with your Binance API credentials.
             var apiKey = "sybWFxQa2pJlxwm9VeoNwVSCQlOAGV31fxFBj6rAl3QgzDctgeAd0dyQHO8bahu8";
             var apiSecret = "LeAS9bifY62wdqbHadDLYNQX8AASkVlRx5u9RrWXj5MXoTHndpEI38fs85gd3A4H";
@@ -34,6 +32,7 @@ namespace BinanceGridTradingBotExample
             //{
             //    ApiCredentials = new ApiCredentials(apiKey, apiSecret)
             //};
+           
             using var client = new BinanceRestClient(options =>
             {
                 options.ApiCredentials = new ApiCredentials(apiKey, apiSecret);
@@ -43,6 +42,11 @@ namespace BinanceGridTradingBotExample
             var spotBook = new BinanceSpotSymbolOrderBook("ETHUSDT");
             var coinBook = new BinanceFuturesCoinSymbolOrderBook("ETHUSD");
             var usdtBook = new BinanceFuturesUsdtSymbolOrderBook("ETHUSDT");
+            var feeResult = await client.SpotApi.Account.GetAccountInfoAsync();
+            if (!feeResult.Success)
+            {
+                Console.WriteLine($"Fee error: {feeResult.Error?.Message??""}");
+            }
 
             //var symbolInfo = (await client.SpotApi.ExchangeData.GetExchangeInfoAsync("ETHUSDT")).Data.Symbols.FirstOrDefault();
             //Console.WriteLine($"Symbol: {(symbolInfo.Filters.FirstOrDefault()).FilterType}");
@@ -55,14 +59,14 @@ namespace BinanceGridTradingBotExample
             //Console.WriteLine($"{firstBalance.Asset}: {firstBalance.Total}"); 4470834
 
             //----------- BUY ORDER EXAMPLE -----------------
-            var result2 = await client.SpotApi.Trading.PlaceOrderAsync(
-            "ETHUSDT",
-            OrderSide.Buy,
-            SpotOrderType.Market,
-            1m
-            //timeInForce: TimeInForce.GoodTillCanceled
-            );
-            Console.WriteLine(result2.Data.Id + " - order id");
+            //var result2 = await client.SpotApi.Trading.PlaceOrderAsync(
+            //"ETHUSDT",
+            //OrderSide.Buy,
+            //SpotOrderType.Market,
+            //1m
+            ////timeInForce: TimeInForce.GoodTillCanceled
+            //);
+            //Console.WriteLine(result2.Data.Id + " - order id");
             // Get ordrer
             var result = await client.SpotApi.Trading.GetOrderAsync("ETHUSDT", 2822949);
             Console.WriteLine(result.Data.Status);

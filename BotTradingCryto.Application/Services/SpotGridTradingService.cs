@@ -48,7 +48,7 @@ namespace BotTradingCrypto.Application
                 Symbol = _symbol,
             };
             // Initialize grid trading and subscribe to the mini ticker for the symbol.
-            //await InitGridTrading();
+            await InitGridTrading();
             await ConnectWebSocket(_symbol);
         }
         public async Task<bool> StopGridTradingAsync(int subId)
@@ -91,20 +91,32 @@ namespace BotTradingCrypto.Application
                 }
             };
             var symbolStreamId = await _binanceService.SubscribeMiniTickerAsync(symbol, executeGrid, _orderBook.Id);
-            await _binanceService.SubscribeUserDataAsync(symbol, handleFilledOrder);
+            await _binanceService.SubscribeUserDataAsync(symbol, handleFilledOrder, _orderBook.Id);
             _orderBook.SubscriptionId = symbolStreamId.ToString();
         }
 
         public async Task InitGridTrading()
         {
             var totalGrid = _gridConfiguration.Value.TotalGrid;
-            var price = await _binanceService.GetCurrentPriceAsync(_symbol);
+            var bid = await _binanceService.GetCurrentPriceAsync(_symbol);
+            var ask = CalculateGapAsync(0, OrderType.Sell);
+            var order = new GridOrder()
+            {
+                Id = 
+                Ask = ask,
+                Bid = bid,
+                GapPercent = _gridConfiguration.Value.InitialGapPercent,
+                GridLevel = 0,
+                Quantity = _gridConfiguration.Value.BaseQuantity,
+                Side = OrderType.Sell,
+                Status = OrderStatus.New
+            };
             //Place order at grid 0
-            await PlaceSpotLimitBuyOrderAsync(price, 0);
+            await PlaceSpotLimitBuyOrderAsync(price, 0, _symbol);
             for (int i = 1; i<= totalGrid; i++)
             {
-                price = await CalculatePriceAsync(i, price, OrderType.Buy);
-                await PlaceSpotLimitBuyOrderAsync(price, i);
+                bid = await CalculatePriceAsync(i, price, OrderType.Buy);
+                await PlaceSpotLimitBuyOrderAsync(price, i, _symbol);
             }
         }
 
@@ -114,7 +126,7 @@ namespace BotTradingCrypto.Application
             {
                 var priceGrid_0 = orderBook.gridOrders.FirstOrDefault(x => x.GridLevel == 0)?.Price ?? 0;
                 var quantityGrid_0 = orderBook.gridOrders.FirstOrDefault(x => x.GridLevel == 0)?.Quantity ?? 0;
-                await PlaceSpotLimitBuyOrderAsync(priceGrid_0, 0,quantityGrid_0);
+                await PlaceSpotLimitBuyOrderAsync(priceGrid_0, 0,orderBook.Symbol, quantityGrid_0);
                 for (int i = 1; i <= _gridConfiguration.Value.TotalGrid; i++)
                 {
                     double quantityGrid = 0;
@@ -122,13 +134,14 @@ namespace BotTradingCrypto.Application
                     var orderGrid = orderBook.gridOrders.FirstOrDefault(x => x.GridLevel == i);
                     if(orderGrid != null)
                     {
+                        // check ResetIncrementPercent for What?`
                         quantityGrid = orderGrid.Quantity * (1 + _gridConfiguration.Value.ResetIncrementPercent);
                     }
                     else
                     {
                         quantityGrid = _gridConfiguration.Value.BaseQuantity + (i * _gridConfiguration.Value.QuantityIncrement);
                     }
-                    await PlaceSpotLimitBuyOrderAsync(priceGrid, i, quantityGrid);
+                    await PlaceSpotLimitBuyOrderAsync(priceGrid, i, orderBook.Symbol, quantityGrid);
                 }
                 await _binanceService.CancelAllOrderAsync();
             }
@@ -159,22 +172,38 @@ namespace BotTradingCrypto.Application
                 var priceGrid = await CalculatePriceAsync(lowestGridOrder.GridLevel + 1, price, OrderType.Buy);
                 if(price <= priceGrid)
                 {
-                    await PlaceSpotLimitBuyOrderAsync(priceGrid, lowestGridOrder.GridLevel + 1);
+                    await PlaceSpotLimitBuyOrderAsync(priceGrid, lowestGridOrder.GridLevel + 1, orderBook.Symbol);
                 }
             }
         }
         public async Task HandleFilledOrder(long id)
         {
             //check order id in list -> handle order 
-            //var orderBook = await _orderBookStore.GetOrderBookAsync(id);
+            var book = await _orderBookStore.GetOrderBookByOrderIdAsync(id);
+            var order = book.gridOrders.Where(o => o.Id == id).FirstOrDefault();
+            if(order == null)
+            {
+                Console.WriteLine("Not Found order");
+            }
             // Buy -> Sell
+            if(order.Side == OrderType.Buy)
+            {
+                var priceSell = await CalculatePriceAsync(order.GridLevel, order.Price, OrderType.Sell);
+                await PlaceSpotLimitSellOrderAsync(priceSell, order.GridLevel, order.Quantity);
+            }
             //Sell -> Buy and calculate profit
+            else
+            {
+                var fee = await _binanceService.GetTradingFeeAsynce(book.Symbol);
+                var balance = order.Price * order.Quantity - fee;
+                await PlaceSpotLimitBuyOrderAsync(balance, order.GridLevel, book.Symbol,);
+            }
             Console.WriteLine($"{DateTime.Now}:Handling filled order with ID: {id}");
         }
-        public async Task PlaceSpotLimitBuyOrderAsync(double price, int gridNumber, double quantity = 0)
+        public async Task PlaceSpotLimitBuyOrderAsync(double price, int gridNumber, string symbol, double quantity = 0)
         {
-            var stepSize = await _binanceService.GetStepSize(_symbol);
-            var stickSize = await _binanceService.GetTickSize(_symbol);
+            var stepSize = await _binanceService.GetStepSize(symbol);
+            var stickSize = await _binanceService.GetTickSize(symbol);
             price = Math.Round(price, stickSize);
             if (quantity == 0)
             {

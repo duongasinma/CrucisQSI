@@ -1,4 +1,5 @@
-﻿using BotTradingCryto.Application;
+﻿using BotTradingCrypto.Domain;
+using BotTradingCryto.Application;
 using BotTradingCryto.Domain;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,17 @@ namespace BotTradingCryto.Infrastructure
             throw new NotImplementedException();
         }
 
+        public Task<GridOrder> GetGridOrderAsync(long id)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<OrderBook> GetOrderBookAsync(Guid id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<OrderBook> GetOrderBookByOrderIdAsync(long id)
         {
             throw new NotImplementedException();
         }
