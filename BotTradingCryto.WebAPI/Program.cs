@@ -2,9 +2,9 @@ using Binance.Net.Clients;
 using BotTradingCrypto.Application;
 using BotTradingCrypto.Domain;
 using BotTradingCrypto.Infrastructure.Services;
-using BotTradingCryto.Application;
-using BotTradingCryto.Infrastructure;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
+using BotTradingCrypto.Infrastructure;
+using MongoDB.Driver;
+//using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 

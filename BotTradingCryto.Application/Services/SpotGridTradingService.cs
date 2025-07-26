@@ -1,8 +1,6 @@
 ﻿using BotTradingCrypto.Application;
 using BotTradingCrypto.Domain;
-using BotTradingCryto.Application;
-using BotTradingCryto.Domain;
-using BotTradingCryto.Domain.Utilities.Enums;
+using BotTradingCrypto.Domain.Utilities.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

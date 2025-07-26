@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BotTradingCryto.Domain.Utilities.Enums
+namespace BotTradingCrypto.Domain.Utilities.Enums
 {
     public enum OrderStatus
     {

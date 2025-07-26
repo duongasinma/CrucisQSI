@@ -1,5 +1,5 @@
-﻿using BotTradingCryto.Domain;
-using BotTradingCryto.Domain.Utilities.Enums;
+﻿using BotTradingCrypto.Domain;
+using BotTradingCrypto.Domain.Utilities.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;

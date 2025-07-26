@@ -4,7 +4,7 @@ using BotTradingCrypto.Application;
 using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BotTradingCryto.WebAPI.Controllers
+namespace BotTradingCrypto.WebAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -27,7 +27,7 @@ namespace BotTradingCryto.WebAPI.Controllers
         [HttpGet("Test")]
         public async Task<IActionResult> Test()
         {
-            await _gridTradingService.StartGridTradingAsync("BTCUSDT");
+            //await _gridTradingService.StartGridTradingAsync("BTCUSDT");
             _logger.LogInformation("Test endpoint hit at {Time}", DateTime.UtcNow);
             return Ok("Test successful");
         }

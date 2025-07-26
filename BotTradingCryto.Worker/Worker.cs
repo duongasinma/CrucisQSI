@@ -1,6 +1,6 @@
 using BotTradingCrypto.Application;
 
-namespace BotTradingCryto.Worker
+namespace BotTradingCrypto.Worker
 {
     public class Worker : BackgroundService
     {

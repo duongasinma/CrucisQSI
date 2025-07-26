@@ -1,6 +1,6 @@
-@BotTradingCryto.WebAPI_HostAddress = http://localhost:5180
+@BotTradingCrypto.WebAPI_HostAddress = http://localhost:5180
 
-GET {{BotTradingCryto.WebAPI_HostAddress}}/weatherforecast/
+GET {{BotTradingCrypto.WebAPI_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###

@@ -1,12 +1,12 @@
 ﻿using BotTradingCrypto.Domain;
-using BotTradingCryto.Domain;
+using BotTradingCrypto.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BotTradingCryto.Application
+namespace BotTradingCrypto.Application
 {
     public interface IOrderBookStore
     {

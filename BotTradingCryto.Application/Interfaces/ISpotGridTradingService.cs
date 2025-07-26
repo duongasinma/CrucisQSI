@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BotTradingCrypto.Domain;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,7 @@ namespace BotTradingCrypto.Application
 {
     public interface ISpotGridTradingService
     {
-        Task StartGridTradingAsync(string symbol);
+        Task StartGridTradingAsync(string symbol, OrderBookDetail orderBookDetail);
         Task<bool> StopGridTradingAsync(int subId);      
     }
 }

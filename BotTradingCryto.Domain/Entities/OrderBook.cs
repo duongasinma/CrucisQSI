@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BotTradingCryto.Domain
+namespace BotTradingCrypto.Domain
 {
     public class OrderBook
     {

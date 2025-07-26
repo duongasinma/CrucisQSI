@@ -1,13 +1,13 @@
 ﻿using BotTradingCrypto.Domain;
-using BotTradingCryto.Application;
-using BotTradingCryto.Domain;
+using BotTradingCrypto.Application;
+using BotTradingCrypto.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BotTradingCryto.Infrastructure
+namespace BotTradingCrypto.Infrastructure
 {
     public class OrderBookStore : IOrderBookStore
     {

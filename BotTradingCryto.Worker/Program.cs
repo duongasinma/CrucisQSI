@@ -1,10 +1,8 @@
 using Binance.Net.Clients;
 using BotTradingCrypto.Application;
 using BotTradingCrypto.Infrastructure.Services;
-using BotTradingCryto.Worker;
-using CryptoExchange.Net.Authentication;
+using BotTradingCrypto.Worker;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.DependencyInjection;
 
 var builder = Host.CreateApplicationBuilder(args);
 

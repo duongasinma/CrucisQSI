@@ -6,19 +6,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trading.Test", "Trading.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Binance.Test", "Binance.Test\Binance.Test.csproj", "{BAEBEAE0-29A1-402F-8563-071C84A61989}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCryto.Domain", "BotTradingCryto.Domain\BotTradingCryto.Domain.csproj", "{6C6B1535-4CCA-45B4-A44E-23B5096EAFD0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCrypto.Domain", "BotTradingCryto.Domain\BotTradingCrypto.Domain.csproj", "{6C6B1535-4CCA-45B4-A44E-23B5096EAFD0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCryto.Application", "BotTradingCryto.Application\BotTradingCryto.Application.csproj", "{25FC2043-8B94-4F28-A8FF-0F6C2FD7B1D7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCrypto.Application", "BotTradingCryto.Application\BotTradingCrypto.Application.csproj", "{25FC2043-8B94-4F28-A8FF-0F6C2FD7B1D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCryto.Infrastructure", "BotTradingCryto.Infrastructure\BotTradingCryto.Infrastructure.csproj", "{6C28AE0C-F07E-4AD8-954F-EAFAED920F18}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCrypto.Infrastructure", "BotTradingCryto.Infrastructure\BotTradingCrypto.Infrastructure.csproj", "{6C28AE0C-F07E-4AD8-954F-EAFAED920F18}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCryto.WebAPI", "BotTradingCryto.WebAPI\BotTradingCryto.WebAPI.csproj", "{9BB47EE9-EB3C-4DE7-813B-77B18BDB0B47}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCrypto.WebAPI", "BotTradingCryto.WebAPI\BotTradingCrypto.WebAPI.csproj", "{9BB47EE9-EB3C-4DE7-813B-77B18BDB0B47}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B8B0E117-4215-498B-9226-A21313A6A76A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{B42BF3DD-BC9C-4F3C-AE08-5450A4C5C04E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCryto.Worker", "BotTradingCryto.Worker\BotTradingCryto.Worker.csproj", "{06828EEA-69CA-4B49-BCE8-F9A8B8DA625C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTradingCrypto.Worker", "BotTradingCryto.Worker\BotTradingCrypto.Worker.csproj", "{06828EEA-69CA-4B49-BCE8-F9A8B8DA625C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

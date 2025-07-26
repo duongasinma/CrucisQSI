@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BotTradingCryto.Domain\BotTradingCryto.Domain.csproj" />
-    <ProjectReference Include="..\BotTradingCryto.Infrastructure\BotTradingCryto.Infrastructure.csproj" />
+    <ProjectReference Include="..\BotTradingCryto.Domain\BotTradingCrypto.Domain.csproj" />
+    <ProjectReference Include="..\BotTradingCryto.Infrastructure\BotTradingCrypto.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

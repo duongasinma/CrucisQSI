@@ -1,6 +1,6 @@
 ﻿
-using BotTradingCryto;
-using BotTradingCryto.Application;
+using BotTradingCrypto;
+using BotTradingCrypto.Application;
 
 namespace BotTradingCrypto.Application
 {
