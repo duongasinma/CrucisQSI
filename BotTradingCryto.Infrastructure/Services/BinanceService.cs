@@ -188,7 +188,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                     onOrderUpdateMessage: data =>
                     {
                         var order = data.Data;
-                        if (order.Status == OrderStatus.Filled)
+                        if (order.Status == OrderStatus.Filled && order.QuantityFilled == order.Quantity)
                         {
                             Console.WriteLine($"Order filled! Symbol: {order.Symbol}, OrderId: {order.Id}, Price: {order.Price}, Quantity: {order.Quantity}");
                             onData(order.Id); // Invoke the callback with the order ID
