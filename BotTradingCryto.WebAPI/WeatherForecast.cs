@@ -1,4 +1,4 @@
-namespace BotTradingCryto.WebAPI
+namespace BotTradingCrypto.WebAPI
 {
     public class WeatherForecast
     {

@@ -4,6 +4,9 @@ using BotTradingCrypto.Domain;
 using BotTradingCrypto.Infrastructure.Services;
 using BotTradingCrypto.Infrastructure;
 using MongoDB.Driver;
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson;
 //using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,13 +25,14 @@ builder.Services.AddSingleton<IMongoClient>(_ => {
     var connectionString =
         builder
             .Configuration
-            .GetSection("SchoolDatabaseSettings:ConnectionString")?
+            .GetSection("MongoDbSettings:ConnectionString")?
             .Value;
     var settings = MongoClientSettings.FromConnectionString(connectionString);
     settings.ServerApi = new ServerApi(ServerApiVersion.V1);
 
-    return new MongoClient(settings);
+    return new MongoClient(connectionString);
 });
+BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -36,7 +40,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<IBinanceService, BinanceService>();
 builder.Services.AddScoped<ISpotGridTradingService, SpotGridTradingService>();
-builder.Services.AddSingleton<IOrderBookStore, OrderBookStore>();
+builder.Services.AddScoped<IOrderBookStore, OrderBookStore>();
 
 builder.Services.AddMemoryCache();
 var app = builder.Build();

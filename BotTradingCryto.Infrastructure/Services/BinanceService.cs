@@ -19,6 +19,7 @@ using Binance.Net.Objects.Models.Spot;
 using Binance.Net.Objects.Models.Spot.Socket;
 using BotTradingCrypto;
 using Microsoft.Extensions.Caching.Memory;
+using System.Globalization;
 
 
 
@@ -60,21 +61,21 @@ namespace BotTradingCrypto.Infrastructure.Services
         }
         public async Task<OperationResult> PlaceSpotLimitOrderAsync(string symbol, decimal price, decimal quantity, bool isBuy)
         {
-            var sharedRestSpot = _restClient.SpotApi.SharedClient;
             var side = isBuy ? OrderSide.Buy : OrderSide.Sell;
             var orderResult = await _restClient.SpotApi.Trading.PlaceOrderAsync(
                 symbol, 
                 side: isBuy? OrderSide.Buy: OrderSide.Sell, 
                 type: SpotOrderType.Limit, 
-                quantity,
-                price
+                quantity: quantity,
+                price: price,
+                timeInForce: TimeInForce.GoodTillCanceled
                 );
 
             if (orderResult.Success)
             {
                 OperationResult result = OperationResult.Success;
                 result.Data = orderResult.Data.Id;
-                Console.WriteLine($"Order executed: {side} {quantity} {symbol} at market price.");
+                Console.WriteLine($"Order executed: {side.ToString()} {quantity} {symbol} at {price}.");
                 return result;
             }
             else
@@ -105,7 +106,23 @@ namespace BotTradingCrypto.Infrastructure.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error fetching trading fee: {ex.Message}");
                 return 0;
+            }
+        }
+        public async Task<OperationResult> GetAccoutInfoAsync()
+        {
+            var accountInfoResult = await _restClient.SpotApi.Account.GetAccountInfoAsync();
+            if (accountInfoResult.Success)
+            {
+                var accountInfo = accountInfoResult.Data;
+                OperationResult result = OperationResult.Success;
+                result.Data = accountInfo;
+                return result;
+            }
+            else
+            {
+                return OperationResult.Failed(null, "Failed to fetch account info");
             }
         }
         public async Task ConnectSocketTradingAsync(string symbol, int num)
@@ -138,8 +155,8 @@ namespace BotTradingCrypto.Infrastructure.Services
         /// </summary>
         public async Task<int> SubscribeMiniTickerAsync(
             string symbol,
-            Action<double, Guid> onData,
-            Guid orderBookId,
+            Action<double, string> onData,
+            string orderBookId,
             CancellationToken ct = default)
         {
             // throttle to 5 subs/sec
@@ -166,7 +183,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                 _ = Task.Delay(250, ct).ContinueWith(_ => _throttle.Release());
             }
         }
-        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, Guid orderBookId, CancellationToken ct = default)
+        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, string orderBookId, CancellationToken ct = default)
         {
             if (_userDataSubscriptionId.HasValue)
             {
@@ -291,7 +308,13 @@ namespace BotTradingCrypto.Infrastructure.Services
                     }
                 });
             var tickSize = symbolInfor?.PriceFilter?.TickSize ?? 0.01m; // Default tick size if not found
-            var tickDecimal = tickSize.ToString().Split('.').Last().Length;
+            string tickStr = tickSize.ToString("G29", CultureInfo.InvariantCulture);
+            //var tickDecimal2 = tickSize.ToString().Split('.').Last().Length;
+            if (!tickStr.Contains('.'))
+            {
+                return 0; // No decimal places
+            }
+            var tickDecimal = tickStr.Split('.')[1].Length;
             return tickDecimal;
         }
         public async Task<int> GetStepSize(string symbol)
@@ -312,7 +335,13 @@ namespace BotTradingCrypto.Infrastructure.Services
                     }
                 });
             var stepSize = symbolInfor?.LotSizeFilter?.StepSize ?? 0.00001m; // Default tick size if not found
-            var stepDecimal = stepSize.ToString().Split('.').Last().Length;
+            string stepStr = stepSize.ToString("G29", CultureInfo.InvariantCulture);
+            //var tickDecimal2 = tickSize.ToString().Split('.').Last().Length;
+            if (!stepStr.Contains('.'))
+            {
+                return 0; // No decimal places
+            }
+            var stepDecimal = stepStr.Split('.')[1].Length;
             return stepDecimal;
         }
 
