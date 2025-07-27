@@ -16,6 +16,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<GridConfiguration>(builder.Configuration.GetSection("GridConfig"));
 builder.Services.AddBinance(builder.Configuration.GetSection("BinanceOptions"));
 
+//Add mongo db
+builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDbSettings"));
+builder.Services.AddSingleton<IMongoClient>(_ => {
+    var connectionString =
+        builder
+            .Configuration
+            .GetSection("SchoolDatabaseSettings:ConnectionString")?
+            .Value;
+    var settings = MongoClientSettings.FromConnectionString(connectionString);
+    settings.ServerApi = new ServerApi(ServerApiVersion.V1);
+
+    return new MongoClient(settings);
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
