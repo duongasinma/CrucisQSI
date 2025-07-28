@@ -21,46 +21,110 @@ namespace BotTradingCrypto.Infrastructure
             var database = mongoClient.GetDatabase(mongoDbSettings.Value.DatabaseName);
             _orderBookCollection = database.GetCollection<OrderBook>(mongoDbSettings.Value.OrderBookCollectionName);
         }
-        public Task<OperationResult> DeleteOrderBook(string id)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task<IEnumerable<OrderBook>> GetAllOrderBook()
         {
-            var list = await _orderBookCollection.Find(_ => true)
-                .ToListAsync();
-            if (!list.Any())
+            return await _orderBookCollection
+                .Find(_ => true)
+                .ToListAsync()
+                .ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        return t.Result.AsEnumerable();
+                    }
+                    else
+                    {
+                        throw new Exception("Failed to retrieve order books", t.Exception);
+                    }
+                });
+        }
+
+        public async Task<GridOrder> GetGridOrderAsync(long id)
+        {
+            var order = await _orderBookCollection
+                .Find(book => book.GridOrders.Any(order => order.Id == id))
+                .Project(book => book.GridOrders.FirstOrDefault(order => order.Id == id))
+                .FirstOrDefaultAsync();
+            if (order == null)
             {
-                Console.WriteLine("List don't have any value");
+                return new GridOrder(); // or throw an exception if you prefer
             }
-                return list;
+            return order;
         }
 
-        public Task<GridOrder> GetGridOrderAsync(long id)
+        public async Task<OrderBook> GetOrderBookAsync(string id)
         {
-            throw new NotImplementedException();
+            var book = await _orderBookCollection
+                .Find(x => x.Id == id)
+                .FirstOrDefaultAsync();
+            return book;
         }
 
-        public Task<OrderBook> GetOrderBookAsync(string id)
+        public async Task<OrderBook> GetOrderBookByOrderIdAsync(long id)
         {
-            throw new NotImplementedException();
-        }
-
-        public Task<OrderBook> GetOrderBookByOrderIdAsync(long id)
-        {
-            throw new NotImplementedException();
+            var book = await _orderBookCollection
+                .Find(book => book.GridOrders.Any(order => order.Id == id))
+                //.Project(book => book.GridOrders.FirstOrDefault(order => order.Id == id))
+                .FirstOrDefaultAsync();
+            if (book == null)
+            {
+                return new OrderBook(); // or throw an exception if you prefer
+            }
+            return book;
         }
 
         public async Task<OperationResult> InsertOrderBook(OrderBook book)
         {
-            await _orderBookCollection.InsertOneAsync(book);
-            return OperationResult.Success;
+            return await _orderBookCollection
+                .InsertOneAsync(book)
+                .ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        return OperationResult.Success;
+                    }
+                    else
+                    {
+                        return OperationResult.Failed(t.Exception, "Failed to insert order book");
+                    }
+                });
         }
 
-        public Task<OperationResult> UpdateOrderBook(OrderBook book)
+        public async Task<OperationResult> UpdateOrderBook(OrderBook book)
         {
-            throw new NotImplementedException();
+            return await _orderBookCollection
+                .ReplaceOneAsync(
+                    filter: x => x.Id == book.Id,
+                    replacement: book,
+                    options: new ReplaceOptions { IsUpsert = true }
+                ).ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        return OperationResult.Success;
+                    }
+                    else
+                    {
+                        return OperationResult.Failed(t.Exception, "Failed to update order book");
+                    }
+                });
         }
+        public Task<OperationResult> DeleteOrderBook(string id)
+        {
+            return _orderBookCollection
+                .DeleteOneAsync(x => x.Id == id)
+                .ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        return OperationResult.Success;
+                    }
+                    else
+                    {
+                        return OperationResult.Failed(t.Exception, "Failed to delete order book");
+                    }
+                });
+        }
+
     }
 }

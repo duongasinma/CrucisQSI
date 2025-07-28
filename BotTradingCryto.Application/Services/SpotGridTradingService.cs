@@ -108,8 +108,8 @@ namespace BotTradingCrypto.Application
             var order_0 = new GridOrder()
             {
                 Id = id,
-                Ask = ask,
-                Bid = bid,
+                Ask = Math.Round(ask, stickSize),
+                Bid = Math.Round(bid, stickSize),
                 GapPercent = bookDetail.InitialGapPercent,
                 GridLevel = 0,
                 Quantity = bookDetail.BaseQuantity,
@@ -119,7 +119,7 @@ namespace BotTradingCrypto.Application
             };
             orderBook.GridOrders.Add(order_0);
 
-            for (int i = 1; i<= totalGrid; i++)
+            for (int i = 1; i < totalGrid; i++)
             {
                 ask = bid; // For sell orders, ask is usually the same as prev bid.
                 var gap = CalculateGapAsync(bookDetail, i);
@@ -135,8 +135,8 @@ namespace BotTradingCrypto.Application
                 var order_i = new GridOrder()
                 {
                     Id = id,
-                    Ask = ask,
-                    Bid = bid,
+                    Ask = Math.Round(ask, stickSize),
+                    Bid = Math.Round(bid, stickSize),
                     GapPercent = gap,
                     GridLevel = i,
                     Quantity = quantity,
@@ -161,7 +161,7 @@ namespace BotTradingCrypto.Application
             try
             {
                 //*Check case where some sell orders are not filled and cancel all orders.
-                await _binanceService.CancelAllOrderAsync();
+                await _binanceService.CancelAllOrderAsync(orderBook.Symbol);
                 _logger.LogInformation($"Resetting grid trading for book ID: {bookId} at current price: {currPrice}");
 
                 // update the order book with the reset increment percent

@@ -20,6 +20,7 @@ using Binance.Net.Objects.Models.Spot.Socket;
 using BotTradingCrypto;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
+using BotTradingCrypto.Domain.Utilities;
 
 
 
@@ -146,9 +147,9 @@ namespace BotTradingCrypto.Infrastructure.Services
                 Console.WriteLine($"Failed to subscribe: {subscriptionResult.Error}");
             }
         }
-        public async Task CancelAllOrderAsync()
+        public async Task CancelAllOrderAsync(string symbol)
         {
-            //await _restClient.SpotApi.ExchangeData.().ConfigureAwait(false);
+            await _restClient.SpotApi.Trading.CancelAllOrdersAsync(symbol).ConfigureAwait(false);
         }
         /// <summary>
         /// Subscribe to a symbol, returning a GUID you can use to unsubscribe.
@@ -166,9 +167,12 @@ namespace BotTradingCrypto.Infrastructure.Services
                 var res = await _socketClient
                     .SpotApi
                     .ExchangeData
-                    .SubscribeToMiniTickerUpdatesAsync(
+                    .SubscribeToTickerUpdatesAsync(
                         symbol,
-                        data => onData((double)data.Data.LastPrice, orderBookId)
+                        data => {
+                            Console.WriteLine($" ------ Current price: {data.Data.LastPrice} | 24h Change: {data.Data.PriceChangePercent}%");
+                            onData((double)data.Data.LastPrice, orderBookId);
+                        }
                      )
                     .ConfigureAwait(false);
 
@@ -308,13 +312,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                     }
                 });
             var tickSize = symbolInfor?.PriceFilter?.TickSize ?? 0.01m; // Default tick size if not found
-            string tickStr = tickSize.ToString("G29", CultureInfo.InvariantCulture);
-            //var tickDecimal2 = tickSize.ToString().Split('.').Last().Length;
-            if (!tickStr.Contains('.'))
-            {
-                return 0; // No decimal places
-            }
-            var tickDecimal = tickStr.Split('.')[1].Length;
+            var tickDecimal = NumberHandler.GetPrecisionFromMantissa(tickSize);
             return tickDecimal;
         }
         public async Task<int> GetStepSize(string symbol)
@@ -335,13 +333,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                     }
                 });
             var stepSize = symbolInfor?.LotSizeFilter?.StepSize ?? 0.00001m; // Default tick size if not found
-            string stepStr = stepSize.ToString("G29", CultureInfo.InvariantCulture);
-            //var tickDecimal2 = tickSize.ToString().Split('.').Last().Length;
-            if (!stepStr.Contains('.'))
-            {
-                return 0; // No decimal places
-            }
-            var stepDecimal = stepStr.Split('.')[1].Length;
+            var stepDecimal = NumberHandler.GetPrecisionFromMantissa(stepSize);
             return stepDecimal;
         }
 
