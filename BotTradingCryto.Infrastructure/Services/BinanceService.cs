@@ -63,6 +63,7 @@ namespace BotTradingCrypto.Infrastructure.Services
         public async Task<OperationResult> PlaceSpotLimitOrderAsync(string symbol, decimal price, decimal quantity, bool isBuy)
         {
             var side = isBuy ? OrderSide.Buy : OrderSide.Sell;
+            Console.WriteLine($"-- Place order: {side.ToString()} {quantity} {symbol} at {price}.");
             var orderResult = await _restClient.SpotApi.Trading.PlaceOrderAsync(
                 symbol, 
                 side: isBuy? OrderSide.Buy: OrderSide.Sell, 
@@ -71,12 +72,12 @@ namespace BotTradingCrypto.Infrastructure.Services
                 price: price,
                 timeInForce: TimeInForce.GoodTillCanceled
                 );
-
+            Console.WriteLine(" ------After place order------");
             if (orderResult.Success)
             {
                 OperationResult result = OperationResult.Success;
                 result.Data = orderResult.Data.Id;
-                Console.WriteLine($"Order executed: {side.ToString()} {quantity} {symbol} at {price}.");
+                Console.WriteLine($"-- Order executed: {side.ToString()} {quantity} {symbol} at {price}.");
                 return result;
             }
             else
@@ -167,10 +168,10 @@ namespace BotTradingCrypto.Infrastructure.Services
                 var res = await _socketClient
                     .SpotApi
                     .ExchangeData
-                    .SubscribeToTickerUpdatesAsync(
+                    .SubscribeToMiniTickerUpdatesAsync(
                         symbol,
                         data => {
-                            Console.WriteLine($" ------ Current price: {data.Data.LastPrice} | 24h Change: {data.Data.PriceChangePercent}%");
+                            Console.WriteLine($" ------ Current price: {data.Data.LastPrice} | 24h Change: %");
                             onData((double)data.Data.LastPrice, orderBookId);
                         }
                      )
@@ -189,6 +190,7 @@ namespace BotTradingCrypto.Infrastructure.Services
         }
         public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, string orderBookId, CancellationToken ct = default)
         {
+            Console.WriteLine("----------Begin Handle filled----------------");
             if (_userDataSubscriptionId.HasValue)
             {
                 Console.WriteLine("Already subscribed to user data updates.");
@@ -203,7 +205,6 @@ namespace BotTradingCrypto.Infrastructure.Services
                     throw new Exception(listenKeyResult.Error?.Message ?? "Failed to start user stream");
                 }
                 _listenKey = listenKeyResult.Data.ToString()??"";
-
                 var res = await _socketClient.SpotApi.Account.SubscribeToUserDataUpdatesAsync(
                     _listenKey,
                     onOrderUpdateMessage: data =>
@@ -211,7 +212,8 @@ namespace BotTradingCrypto.Infrastructure.Services
                         var order = data.Data;
                         if (order.Status == OrderStatus.Filled && order.QuantityFilled == order.Quantity)
                         {
-                            Console.WriteLine($"Order filled! Symbol: {order.Symbol}, OrderId: {order.Id}, Price: {order.Price}, Quantity: {order.Quantity}");
+                            Console.WriteLine("----------------------------------FILLED--------------------------------");
+                            Console.WriteLine($"------Order filled! Symbol: {order.Symbol}, OrderId: {order.Id}, Price: {order.Price}, Quantity: {order.Quantity}, Side: {order.Side}");
                             onData(order.Id); // Invoke the callback with the order ID
                         }
                     }

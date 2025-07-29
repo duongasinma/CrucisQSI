@@ -125,6 +125,5 @@ namespace BotTradingCrypto.Infrastructure
                     }
                 });
         }
-
     }
 }

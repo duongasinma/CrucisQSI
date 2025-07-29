@@ -59,13 +59,13 @@ namespace BinanceGridTradingBotExample
             //Console.WriteLine($"{firstBalance.Asset}: {firstBalance.Total}"); 4470834
 
             //----------- BUY ORDER EXAMPLE -----------------
-            //var result2 = await client.SpotApi.Trading.PlaceOrderAsync(
-            //"ETHUSDT",
-            //OrderSide.Buy,
-            //SpotOrderType.Market,
-            //1m
-            ////timeInForce: TimeInForce.GoodTillCanceled
-            //);
+            var result2 = await client.SpotApi.Trading.PlaceOrderAsync(
+            "BTCUSDT",
+            OrderSide.Sell,
+            SpotOrderType.Market,
+            1m
+            //timeInForce: TimeInForce.GoodTillCanceled
+            );
             //Console.WriteLine(result2.Data.Id + " - order id");
             // Get ordrer
             var result = await client.SpotApi.Trading.GetOrderAsync("ETHUSDT", 2822949);
