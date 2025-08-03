@@ -34,6 +34,11 @@ namespace BotTradingCrypto.Application
         }
         public async Task StartGridTradingAsync(string symbol, OrderBookDetail orderBookDetail)
         {
+            if (_cache is MemoryCache concreteCache)
+            {
+                concreteCache.Clear(); // Clears all cache entries
+            }
+
             var orderBook = new OrderBook()
             {
                 Symbol = symbol,
@@ -77,7 +82,11 @@ namespace BotTradingCrypto.Application
 
             //Update the order book with the subscription ID.
             orderBook.SubscriptionId = symbolStreamId.ToString();
-            await _orderBookStore.UpdateOrderBook(orderBook); // Ensure the order book is updated with the subscription ID.
+            var rs = await _orderBookStore.UpdateOrderBook(orderBook); // Ensure the order book is updated with the subscription ID.
+            if (rs.Succeeded)
+            {
+                _cache.Set(orderBook.Id, orderBook, TimeSpan.FromMinutes(30)); // Update the cache with the new order book
+            }
         }
         public async Task ConnectUserSocket(OrderBook orderBook)
         {
@@ -174,7 +183,7 @@ namespace BotTradingCrypto.Application
 
                 // update the order book with the reset increment percent
                 var bookDetail = orderBook.OrderBookDetail;
-                bookDetail.InitialGapPercent = bookDetail.InitialGapPercent * bookDetail.ResetIncrementPercent;
+                bookDetail.InitialGapPercent = bookDetail.InitialGapPercent * (1 + bookDetail.ResetIncrementPercent);
 
                 var bid = currPrice;
                 var ask = bid * (1 + bookDetail.InitialGapPercent);
@@ -206,7 +215,7 @@ namespace BotTradingCrypto.Application
                     };
                     orderBook.GridOrders.Add(order_0);
                 }
-                for (int i = 1; i <= bookDetail.TotalGrid; i++)
+                for (int i = 1; i < bookDetail.TotalGrid; i++)
                 {
                     var order_i = orderBook.GridOrders.FirstOrDefault(x => x.GridLevel == i);
                     ask = bid; // For sell orders, ask is usually the same as prev bid.
@@ -231,7 +240,7 @@ namespace BotTradingCrypto.Application
                             Ask = ask,
                             Bid = bid,
                             GapPercent = bookDetail.InitialGapPercent,
-                            GridLevel = 0,
+                            GridLevel = i,
                             Quantity = bookDetail.BaseQuantity,
                             Side = OrderType.Buy,
                             Status = OrderStatus.New,
@@ -360,7 +369,11 @@ namespace BotTradingCrypto.Application
                     order.Id = id;
                 }
 
-                await _orderBookStore.UpdateOrderBook(book); // Update the order book in the store
+                var rs = await _orderBookStore.UpdateOrderBook(book); // Update the order book in the store
+                if (rs.Succeeded)
+                {
+                    _cache.Set(book.Id, book, TimeSpan.FromMinutes(30)); // Update the cache with the new order book
+                }
                 Console.WriteLine($"{DateTime.Now}:Handling filled order with ID: {id}");
             }
             catch (Exception ex)
