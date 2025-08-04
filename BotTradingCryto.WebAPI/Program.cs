@@ -38,6 +38,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton<LockProvider>();
 builder.Services.AddSingleton<IBinanceService, BinanceService>();
 builder.Services.AddScoped<ISpotGridTradingService, SpotGridTradingService>();
 builder.Services.AddScoped<IOrderBookStore, OrderBookStore>();

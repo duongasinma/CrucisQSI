@@ -18,19 +18,21 @@ namespace BotTradingCrypto.Application
         private readonly IMemoryCache _cache;
         private readonly IOrderBookStore _orderBookStore;
         private readonly ILogger<SpotGridTradingService> _logger;
-        private decimal _tradingQuantity;
         private List<int> subIds = new List<int>();
+        private readonly LockProvider _lockProvider;
         public SpotGridTradingService(
             IBinanceService binanceService,
             IMemoryCache cache,
             IOrderBookStore orderBookStore,
-            ILogger<SpotGridTradingService> logger
+            ILogger<SpotGridTradingService> logger,
+            LockProvider lockProvider
            )
         {
             _binanceService = binanceService;
             _cache = cache;
             _orderBookStore = orderBookStore;
             _logger = logger;
+            _lockProvider = lockProvider;
         }
         public async Task StartGridTradingAsync(string symbol, OrderBookDetail orderBookDetail)
         {
@@ -65,19 +67,23 @@ namespace BotTradingCrypto.Application
         }
         public async Task ConnectWebSocket(OrderBook orderBook)
         {
+            Console.WriteLine($"{DateTime.Now}:---------- ConnectWebSocket ----------------");
             // Correct the delegate type to match the async method signature.  
-            Action<double, string> executeGrid = async (currentPrice, id) =>
-           {
-               try
-               {
-                   await ExecuteGridTradesAsync(currentPrice, id);
-               }
-               catch (Exception ex)
-               {
-                   _logger.LogError(ex, "Error executing grid trades.");
-               }
-           };
-          
+            var handlerLock = _lockProvider.GetLock($"{orderBook.Id}");
+            Func<double, string, Task> executeGrid =  async(price, id) =>
+            {
+                await handlerLock.WaitAsync();
+                try
+                {
+                    // Your grid execution logic here
+                    await ExecuteGridTradesAsync(price, id);
+                }
+                finally
+                {
+                    handlerLock.Release();
+                }
+            };  
+
             var symbolStreamId = await _binanceService.SubscribeMiniTickerAsync(orderBook.Symbol, executeGrid, orderBook.Id);
 
             //Update the order book with the subscription ID.
@@ -90,15 +96,19 @@ namespace BotTradingCrypto.Application
         }
         public async Task ConnectUserSocket(OrderBook orderBook)
         {
-            Action<long> handleFilledOrder = async (id) =>
+            Console.WriteLine($"{DateTime.Now}:---------- ConnectUserSocket ----------------");
+            var handlerLock = _lockProvider.GetLock($"{orderBook.Id}");
+            Func<long, Task> handleFilledOrder = async (id) =>
             {
+                await handlerLock.WaitAsync();
                 try
                 {
+                    // Your order handling logic here
                     await HandleFilledOrder(id);
                 }
-                catch (Exception ex)
+                finally
                 {
-                    _logger.LogError(ex, "Error handling filled order.");
+                    handlerLock.Release();
                 }
             };
             await _binanceService.SubscribeUserDataAsync(orderBook.Symbol, handleFilledOrder, orderBook.Id);
@@ -106,8 +116,8 @@ namespace BotTradingCrypto.Application
 
         public async Task InitGridTrading(OrderBook orderBook)
         {
-            Task.Delay(2000).Wait();
-            Console.WriteLine("----------Init grid trading----------------");
+            await Task.Delay(1000);
+            Console.WriteLine($"{DateTime.Now}:---------- InitGridTrading ----------------");
             var stepSize = await _binanceService.GetStepSize(orderBook.Symbol);
             var stickSize = await _binanceService.GetTickSize(orderBook.Symbol);
             orderBook.StepSize = stepSize;
@@ -139,7 +149,7 @@ namespace BotTradingCrypto.Application
             {
                 ask = bid; // For sell orders, ask is usually the same as prev bid.
                 var gap = CalculateGapAsync(bookDetail, i);
-                bid = await CalculatePriceAsync(bid, gap);
+                bid = CalculatePriceAsync(bid, gap);
                 var quantity = bookDetail.BaseQuantity + (i * bookDetail.QuantityIncrement);
                 quantity = Math.Round(quantity, stepSize);
                 id = await PlaceSpotLimitBuyOrderAsync(bid, i, orderBook, quantity);
@@ -163,7 +173,7 @@ namespace BotTradingCrypto.Application
                 orderBook.GridOrders.Add(order_i);
             }
             var rs = await _orderBookStore.InsertOrderBook(orderBook); // Save the order book to the store.
-            Console.WriteLine("----------Save done----------------");
+            Console.WriteLine($"{DateTime.Now}:----------Save done----------------");
             if (!rs.Succeeded)
             {
                 _logger.LogError("Failed to initialize grid trading for symbol {Symbol}. Error: {ErrorMessage}", orderBook.Symbol, rs.Message);
@@ -178,7 +188,7 @@ namespace BotTradingCrypto.Application
             {
                 //*Check case where some sell orders are not filled and cancel all orders.
                 await _binanceService.CancelAllOrderAsync(orderBook.Symbol);
-                Console.WriteLine("----------------------------RESET--------------------------------------");
+                Console.WriteLine($"{DateTime.Now}----------------------------RESET--------------------------------------");
                 _logger.LogInformation($"Resetting grid trading for book ID: {bookId} at current price: {currPrice}");
 
                 // update the order book with the reset increment percent
@@ -220,7 +230,7 @@ namespace BotTradingCrypto.Application
                     var order_i = orderBook.GridOrders.FirstOrDefault(x => x.GridLevel == i);
                     ask = bid; // For sell orders, ask is usually the same as prev bid.
                     var gap = CalculateGapAsync(bookDetail, i);
-                    bid = await CalculatePriceAsync(bid, gap);
+                    bid = CalculatePriceAsync(bid, gap);
                     id = await PlaceSpotLimitBuyOrderAsync(bid, i, orderBook, order_i?.Quantity ?? 0);
                     if (order_i != null)
                     {
@@ -269,8 +279,6 @@ namespace BotTradingCrypto.Application
         {
             try
             {
-                Console.WriteLine($"{DateTime.Now}:Executing grid trades at price: {price} for book ID: {bookId}");
-
                 // Retrieve the order book for the given book ID.
                 var orderBook = await _cache.GetOrCreateAsync(bookId, async entry =>
                 {
@@ -294,11 +302,35 @@ namespace BotTradingCrypto.Application
                 //Create new order if price is below the last buy order price
                 else if (price < lowestGridPrice)
                 {
-                    var gap = CalculateGapAsync(orderBook!.OrderBookDetail, (lowestGridOrder?.GridLevel ?? 0) + 1);
-                    var priceGrid = await CalculatePriceAsync(lowestGridPrice, gap);
+                    var gridLevel = (lowestGridOrder?.GridLevel ?? 0) + 1;
+                    var gap = CalculateGapAsync(orderBook!.OrderBookDetail, gridLevel);
+                    var priceGrid = CalculatePriceAsync(lowestGridPrice, gap);
                     if (price <= priceGrid)
                     {
-                        await PlaceSpotLimitBuyOrderAsync(priceGrid, (lowestGridOrder?.GridLevel ?? 0) + 1, orderBook);
+                        var id = await PlaceSpotLimitBuyOrderAsync(priceGrid, gridLevel, orderBook);
+                        var order = new GridOrder()
+                        {
+                            Id = id,
+                            Ask = price,
+                            Bid = priceGrid,
+                            GapPercent = gap,
+                            GridLevel = gridLevel,
+                            Quantity = orderBook.OrderBookDetail.BaseQuantity + gridLevel * orderBook.OrderBookDetail.QuantityIncrement,
+                            Side = OrderType.Buy,
+                            Status = OrderStatus.New,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        orderBook.GridOrders.Add(order);
+                    }
+                    var rs = await _orderBookStore.UpdateOrderBook(orderBook);
+                    if(rs.Succeeded)
+                    {
+                        _cache.Set(orderBook.Id, orderBook, TimeSpan.FromMinutes(30)); // Update the cache with the new order book
+                        Console.WriteLine($"{DateTime.Now}:New grid order placed at price {priceGrid} for book ID: {bookId}");
+                    }
+                    else
+                    {
+                        _logger.LogError("Failed to update order book after placing new grid order. Error: {ErrorMessage}", rs.Message);
                     }
                 }
             }
@@ -311,8 +343,7 @@ namespace BotTradingCrypto.Application
         {
             try
             {
-                Task.Delay(5000).Wait(); // Simulate a delay for processing
-                Console.WriteLine("----------Begin filled----------------");
+                Console.WriteLine($"{DateTime.Now}----------Begin filled----------------");
                 //check order id in list -> handle order 
                 var book = await _orderBookStore.GetOrderBookByOrderIdAsync(id);
                 var order = book.GridOrders.Where(o => o.Id == id).FirstOrDefault();
@@ -343,7 +374,7 @@ namespace BotTradingCrypto.Application
                 else
                 {
                     var fee = await _binanceService.GetTradingFeeAsynce(book.Symbol);
-                    Console.WriteLine($" -----------Fee of order: {fee} ------------");
+                    //Console.WriteLine($" -----------Fee of order: {fee} ------------");
                     var amount = order.Ask * order.Quantity - fee;
                     var profit = (amount - (order.Bid * order.Quantity)) / order.Bid * order.Quantity;
                     var buyQuantity = Math.Round(amount / order.Bid, book.StepSize);
@@ -363,7 +394,6 @@ namespace BotTradingCrypto.Application
                         order.Side = OrderType.Buy;
                         order.Status = OrderStatus.New;
                     }
-                    Console.WriteLine("----------Begin Update----------------");
                     id = await PlaceSpotLimitBuyOrderAsync(order.Bid, order.GridLevel, book, buyQuantity);
                     Console.WriteLine("----------Done filled----------------");
                     order.Id = id;
@@ -391,7 +421,7 @@ namespace BotTradingCrypto.Application
                 quantity = orderBook.OrderBookDetail.BaseQuantity + (gridNumber * orderBook.OrderBookDetail.QuantityIncrement);
             }
             quantity = Math.Round(quantity, orderBook.StepSize);
-            var rs = await _binanceService.PlaceSpotLimitOrderAsync(orderBook.Symbol, (decimal)price, (decimal)quantity, true);
+            var rs = await _binanceService.PlaceSpotLimitOrderAsync(gridNumber, orderBook.Symbol, (decimal)price, (decimal)quantity, true);
             if (!rs.Succeeded)
             {
                 _logger.LogError("Failed to place buy order for grid {GridNumber} at price {Price}. Error: {ErrorMessage}", gridNumber, price, rs.Message);
@@ -418,7 +448,7 @@ namespace BotTradingCrypto.Application
                 }
                 price = Math.Round(price, orderBook.StickSize);
                 quantity = Math.Round(quantity, orderBook.StepSize);
-                var rs = await _binanceService.PlaceSpotLimitOrderAsync(orderBook.Symbol, (decimal)price, (decimal)quantity, false);
+                var rs = await _binanceService.PlaceSpotLimitOrderAsync(gridNumber, orderBook.Symbol, (decimal)price, (decimal)quantity, false);
                 if (!rs.Succeeded)
                 {
                     _logger.LogError("Failed to place buy order for grid {GridNumber} at price {Price}. Error: {ErrorMessage}", gridNumber, price, rs.Message);
@@ -451,7 +481,7 @@ namespace BotTradingCrypto.Application
             gap = Math.Max(gap, orderBookDetail.MinGapPercent);
             return gap;
         }
-        public async Task<double> CalculatePriceAsync(double price, double gap)
+        public double CalculatePriceAsync(double price, double gap)
         {           
             var placedPrice = price;
             placedPrice = price * (1 - gap);

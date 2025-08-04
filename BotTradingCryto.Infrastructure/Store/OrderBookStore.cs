@@ -85,7 +85,7 @@ namespace BotTradingCrypto.Infrastructure
                     }
                     else
                     {
-                        return OperationResult.Failed(t.Exception, "Failed to insert order book");
+                        return OperationResult.Failed(t.Exception, t.Exception?.Message?? "Failed to insert order book");
                     }
                 });
         }

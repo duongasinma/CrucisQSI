@@ -60,10 +60,10 @@ namespace BotTradingCrypto.Infrastructure.Services
                 return OperationResult.Failed(null, "Failed to fetch symbol info");
             }
         }
-        public async Task<OperationResult> PlaceSpotLimitOrderAsync(string symbol, decimal price, decimal quantity, bool isBuy)
+        public async Task<OperationResult> PlaceSpotLimitOrderAsync(int num, string symbol, decimal price, decimal quantity, bool isBuy)
         {
             var side = isBuy ? OrderSide.Buy : OrderSide.Sell;
-            Console.WriteLine($"-- Place order: {side.ToString()} {quantity} {symbol} at {price}.");
+            Console.WriteLine($"{DateTime.Now}: [BinanceService] Place order {num}: {side.ToString()} {quantity} {symbol} at {price}.");
             var orderResult = await _restClient.SpotApi.Trading.PlaceOrderAsync(
                 symbol, 
                 side: isBuy? OrderSide.Buy: OrderSide.Sell, 
@@ -72,12 +72,10 @@ namespace BotTradingCrypto.Infrastructure.Services
                 price: price,
                 timeInForce: TimeInForce.GoodTillCanceled
                 );
-            Console.WriteLine(" ------After place order------");
             if (orderResult.Success)
             {
                 OperationResult result = OperationResult.Success;
                 result.Data = orderResult.Data.Id;
-                Console.WriteLine($"-- Order executed: {side.ToString()} {quantity} {symbol} at {price}.");
                 return result;
             }
             else
@@ -108,7 +106,7 @@ namespace BotTradingCrypto.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error fetching trading fee: {ex.Message}");
+                Console.WriteLine($"Error fetching trading fee");
                 return 0;
             }
         }
@@ -129,7 +127,7 @@ namespace BotTradingCrypto.Infrastructure.Services
         }
         public async Task ConnectSocketTradingAsync(string symbol, int num)
         {
-            Console.WriteLine($"Subscribing to {symbol} trade updates...");
+            Console.WriteLine($"[BinanceService]: Subscribing to {symbol} trade updates...");
             var subscriptionResult = await _socketClient.SpotApi.ExchangeData.SubscribeToMiniTickerUpdatesAsync(
                 symbol,
                 data =>
@@ -142,7 +140,7 @@ namespace BotTradingCrypto.Infrastructure.Services
             var subId = subscriptionResult.Data.Id;
             var socketId = subscriptionResult.Data.SocketId;
             var connections = _socketClient.SpotApi.CurrentConnections;
-            Console.WriteLine($"Subscribed with ID: {subId} - socket {socketId} - amount connections {connections}");
+            Console.WriteLine($"[BinanceService]: Subscribed with ID: {subId} - socket {socketId} - amount connections {connections}");
             if (!subscriptionResult.Success)
             {
                 Console.WriteLine($"Failed to subscribe: {subscriptionResult.Error}");
@@ -157,7 +155,7 @@ namespace BotTradingCrypto.Infrastructure.Services
         /// </summary>
         public async Task<int> SubscribeMiniTickerAsync(
             string symbol,
-            Action<double, string> onData,
+            Func<double, string, Task> onData,
             string orderBookId,
             CancellationToken ct = default)
         {
@@ -170,9 +168,9 @@ namespace BotTradingCrypto.Infrastructure.Services
                     .ExchangeData
                     .SubscribeToMiniTickerUpdatesAsync(
                         symbol,
-                        data => {
-                            Console.WriteLine($" ------ Current price: {data.Data.LastPrice} | 24h Change: %");
-                            onData((double)data.Data.LastPrice, orderBookId);
+                        async data => {
+                            Console.WriteLine($"{DateTime.Now}: [BinanceService] Current price: {data.Data.LastPrice}");
+                            await onData((double)data.Data.LastPrice, orderBookId);
                         }
                      )
                     .ConfigureAwait(false);
@@ -184,16 +182,35 @@ namespace BotTradingCrypto.Infrastructure.Services
             }
             finally
             {
-                // release after 250 ms
-                _ = Task.Delay(250, ct).ContinueWith(_ => _throttle.Release());
+                // release after 350 ms
+                _ = Task.Delay(350, ct).ContinueWith(_ => _throttle.Release());
             }
         }
-        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Action<long> onData, string orderBookId, CancellationToken ct = default)
+        public async Task TrackingTickerAsync()
         {
-            Console.WriteLine("----------Begin Handle filled----------------");
+            try
+            {
+                var res = await _socketClient.SpotApi.ExchangeData.SubscribeToTickerUpdatesAsync(
+                                    "BTCUSDT",
+                                    data =>
+                                    {
+                                        Console.WriteLine($"{DateTime.Now}: [BinanceService] Ticker update: {data.Data.Symbol} - Last Price: {data.Data.LastPrice}");
+                                    });
+                if (!res.Success)
+                {
+                    Console.WriteLine($"Failed to subscribe to ticker updates: {res.Error}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error subscribing to ticker updates: {ex.Message}");
+            }
+        }
+        public async Task<OperationResult> SubscribeUserDataAsync(string symbol, Func<long, Task> onData, string orderBookId, CancellationToken ct = default)
+        {
             if (_userDataSubscriptionId.HasValue)
             {
-                Console.WriteLine("Already subscribed to user data updates.");
+                Console.WriteLine($"{DateTime.Now}Already subscribed to user data updates.");
                 return OperationResult.Success;
             }
             await _throttle.WaitAsync(ct).ConfigureAwait(false);
@@ -204,17 +221,22 @@ namespace BotTradingCrypto.Infrastructure.Services
                 {
                     throw new Exception(listenKeyResult.Error?.Message ?? "Failed to start user stream");
                 }
-                _listenKey = listenKeyResult.Data.ToString()??"";
+                _listenKey = listenKeyResult.Data.ToString() ?? "";
+                bool isFirst = true;
                 var res = await _socketClient.SpotApi.Account.SubscribeToUserDataUpdatesAsync(
                     _listenKey,
-                    onOrderUpdateMessage: data =>
+                    onOrderUpdateMessage: async data =>
                     {
                         var order = data.Data;
                         if (order.Status == OrderStatus.Filled && order.QuantityFilled == order.Quantity)
                         {
-                            Console.WriteLine("----------------------------------FILLED--------------------------------");
-                            Console.WriteLine($"------Order filled! Symbol: {order.Symbol}, OrderId: {order.Id}, Price: {order.Price}, Quantity: {order.Quantity}, Side: {order.Side}");
-                            onData(order.Id); // Invoke the callback with the order ID
+                            if (isFirst)
+                            {
+                                isFirst = false;
+                                await Task.Delay(10000, ct); // Delay 1 second on first call
+                            }
+                            Console.WriteLine($"{DateTime.Now}: [BinanceService] Order FILLED! Symbol: {order.Symbol}, OrderId: {order.Id}, Price: {order.Price}, Quantity: {order.Quantity}, Side: {order.Side}");
+                            await onData(order.Id); // Invoke the callback with the order ID
                         }
                     }
                 );

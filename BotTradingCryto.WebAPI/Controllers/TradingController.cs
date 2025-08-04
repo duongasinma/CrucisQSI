@@ -11,7 +11,7 @@ namespace BotTradingCrypto.WebAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class WeatherForecastController : ControllerBase
+    public class TradingController : ControllerBase
     {
         private static readonly string[] Summaries = new[]
         {
@@ -20,9 +20,9 @@ namespace BotTradingCrypto.WebAPI.Controllers
         private readonly ISpotGridTradingService _gridTradingService;
         private readonly IOrderBookStore _orderBookStore;
         private readonly IBinanceService _binanceService;
-        private readonly ILogger<WeatherForecastController> _logger;
+        private readonly ILogger<TradingController> _logger;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger, 
+        public TradingController(ILogger<TradingController> logger, 
             ISpotGridTradingService gridTradingService,
             IOrderBookStore orderBookStore,
             IBinanceService binanceService)
@@ -59,6 +59,20 @@ namespace BotTradingCrypto.WebAPI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cancelling all orders");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+        [HttpGet("TrackingPrice")]
+        public async Task<IActionResult> TrackingPrice()
+        {
+            try
+            {
+                await _binanceService.TrackingTickerAsync();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error tracking price for symbol {Symbol}");
                 return StatusCode(500, "Internal server error");
             }
         }
