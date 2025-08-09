@@ -169,7 +169,7 @@ namespace BotTradingCrypto.Infrastructure.Services
                     .SubscribeToMiniTickerUpdatesAsync(
                         symbol,
                         async data => {
-                            Console.WriteLine($"{DateTime.Now}: [BinanceService] Current price: {data.Data.LastPrice}");
+                            Console.WriteLine($"{DateTime.Now}: [BinanceService-{orderBookId}] Current price: {data.Data.LastPrice}");
                             await onData((double)data.Data.LastPrice, orderBookId);
                         }
                      )
