@@ -143,7 +143,7 @@ namespace BotTradingCrypto.Application
                 Bid = Math.Round(bid, stickSize),
                 GapPercent = bookDetail.InitialGapPercent,
                 GridLevel = 0,
-                Quantity = bookDetail.BaseQuantity,
+                Quantity = Math.Round(bookDetail.BaseQuantity, stepSize),
                 Side = OrderType.Buy,
                 Status = OrderStatus.New,
                 CreatedAt = DateTime.UtcNow
@@ -315,7 +315,13 @@ namespace BotTradingCrypto.Application
                     if (price <= priceGrid)
                     {
                         Console.WriteLine($"{DateTime.Now} [SpotGridTradingService] Placing new order at lowest price {priceGrid}, gird - {gridLevel} for book ID: {bookId}");
-                        var id = await PlaceSpotLimitBuyOrderAsync(priceGrid, gridLevel, orderBook);
+                        var quantity = orderBook.OrderBookDetail.BaseQuantity + gridLevel * orderBook.OrderBookDetail.QuantityIncrement;
+                        var id = await PlaceSpotLimitBuyOrderAsync(priceGrid, gridLevel, orderBook, quantity);
+                        if(id <= 0)
+                        {
+                            _logger.LogError("[SpotGridTradingService] Failed to place order for grid level {GridLevel} at price {Price}.", gridLevel, priceGrid);
+                            return; // Exit if the order placement failed.
+                        }
                         var order = new GridOrder()
                         {
                             Id = id,
@@ -323,7 +329,7 @@ namespace BotTradingCrypto.Application
                             Bid = priceGrid,
                             GapPercent = gap,
                             GridLevel = gridLevel,
-                            Quantity = orderBook.OrderBookDetail.BaseQuantity + gridLevel * orderBook.OrderBookDetail.QuantityIncrement,
+                            Quantity = Math.Round(quantity, orderBook.StepSize),
                             Side = OrderType.Buy,
                             Status = OrderStatus.New,
                             CreatedAt = DateTime.UtcNow
@@ -378,7 +384,7 @@ namespace BotTradingCrypto.Application
                     Console.WriteLine();
                     return;
                 }
-                var checklast = order.GridLevel >= (book.GridOrders.Count() + 1);
+                var checklast = order.GridLevel > (book.GridOrders.Count());
 
                 // Buy -> Sell
                 if (order.Side == OrderType.Buy)
@@ -410,11 +416,6 @@ namespace BotTradingCrypto.Application
                     var amount = order.Ask * order.Quantity - fee;
                     var profit = (amount - (order.Bid * order.Quantity)) / order.Bid * order.Quantity;
                     var buyQuantity = Math.Round(amount / order.Bid, book.StepSize);
-                    var growthRate = book.OrderBookDetail.CompoundGrowthRate;
-                    //if (growthRate > 0 && profit > growthRate)
-                    //{
-                    //    buyQuantity += (buyQuantity * growthRate);
-                    //}
                     if (id <= 0)
                     {
                         _logger.LogError("Failed to place sell order for grid {GridLevel} at price {Price}.", order.GridLevel, order.Ask);
@@ -449,7 +450,7 @@ namespace BotTradingCrypto.Application
         public async Task<long> PlaceSpotLimitBuyOrderAsync(double price, int gridNumber, OrderBook orderBook, double quantity = 0)
         {
             const int maxRetries = 10;
-            const int delayMs = 25000; // 5 seconds between retries
+            const int delayMs = 60000; // 60 seconds between retries
 
             price = Math.Round(price, orderBook.StickSize);
             if (quantity == 0)
