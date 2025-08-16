@@ -23,8 +23,10 @@ namespace BotTradingCrypto.Domain
     }
     public class  OrderBookDetail
     {
-        public double BaseQuantity { get; set; }
-        public double QuantityIncrement { get; set; }
+        //public double BaseQuantity { get; set; }
+        //public double QuantityIncrement { get; set; }
+        public double BaseValue { get; set; }
+        public double ValueIncrement { get; set; }
         public int TotalGrid { get; set; }
         public double InitialGapPercent { get; set; }
         public double GapReductionPercent { get; set; }

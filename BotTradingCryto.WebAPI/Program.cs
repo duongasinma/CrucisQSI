@@ -7,56 +7,83 @@ using MongoDB.Driver;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson;
-//using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+// Read configuration from appsettings.json
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", true)
+    .Build();
 
-// Add services to the container.
-//builder.Services.Configure<KestrelServerOptions>(options =>
-//{
-//    options.Limits.MaxConcurrentConnections = 3; // Set the max concurrent connections
-//});
-builder.Services.Configure<GridConfiguration>(builder.Configuration.GetSection("GridConfig"));
-builder.Services.AddBinance(builder.Configuration.GetSection("BinanceOptions"));
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(configuration)
+    .WriteTo.Map(
+        keyPropertyName: "LogId",
+        //defaultKey: "unknown",
+        configure: (key, wt) => wt.File($"logs/{key}_logs.txt", rollingInterval: RollingInterval.Day),
+        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information
+    )
+    .CreateLogger();
 
-//Add mongo db
-builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDbSettings"));
-builder.Services.AddSingleton<IMongoClient>(_ => {
-    var connectionString =
-        builder
-            .Configuration
-            .GetSection("MongoDbSettings:ConnectionString")?
-            .Value;
-    var settings = MongoClientSettings.FromConnectionString(connectionString);
-    settings.ServerApi = new ServerApi(ServerApiVersion.V1);
-
-    return new MongoClient(connectionString);
-});
-BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-builder.Services.AddSingleton<LockProvider>();
-builder.Services.AddSingleton<IBinanceService, BinanceService>();
-builder.Services.AddScoped<ISpotGridTradingService, SpotGridTradingService>();
-builder.Services.AddScoped<IOrderBookStore, OrderBookStore>();
-
-builder.Services.AddMemoryCache();
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    Log.Information("Starting web host");
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Add services to the container.
+    builder.Host.UseSerilog(); // Use Serilog for logging
+
+    builder.Services.Configure<GridConfiguration>(builder.Configuration.GetSection("GridConfig"));
+    builder.Services.AddBinance(builder.Configuration.GetSection("BinanceOptions"));
+
+    //Add mongo db
+    builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDbSettings"));
+    builder.Services.AddSingleton<IMongoClient>(_ => {
+        var connectionString =
+            builder
+                .Configuration
+                .GetSection("MongoDbSettings:ConnectionString")?
+                .Value;
+        var settings = MongoClientSettings.FromConnectionString(connectionString);
+        settings.ServerApi = new ServerApi(ServerApiVersion.V1);
+
+        return new MongoClient(connectionString);
+    });
+    BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+
+    builder.Services.AddSingleton<LockProvider>();
+    builder.Services.AddSingleton<IBinanceService, BinanceService>();
+    builder.Services.AddScoped<ISpotGridTradingService, SpotGridTradingService>();
+    builder.Services.AddScoped<IOrderBookStore, OrderBookStore>();
+
+    builder.Services.AddMemoryCache();
+    var app = builder.Build();
+    //Log middleware
+    //app.UseSerilogRequestLogging();
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseHttpsRedirection();
+
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    app.Run();
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application start-up failed");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

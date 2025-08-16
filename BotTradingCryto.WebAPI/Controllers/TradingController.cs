@@ -1,22 +1,14 @@
-using Binance.Net.Clients;
-using Binance.Net.Enums;
-using Binance.Net.Objects.Models.Spot;
 using BotTradingCrypto.Application;
 using BotTradingCrypto.Domain;
-using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using static System.Net.Mime.MediaTypeNames;
-
+using Serilog;
 namespace BotTradingCrypto.WebAPI.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class TradingController : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
+      
         private readonly ISpotGridTradingService _gridTradingService;
         private readonly IOrderBookStore _orderBookStore;
         private readonly IBinanceService _binanceService;
@@ -32,19 +24,11 @@ namespace BotTradingCrypto.WebAPI.Controllers
             _orderBookStore = orderBookStore;
             _binanceService = binanceService;
         }
-        [HttpGet("Test")]
+        [HttpGet("GetAllOrder")]
         public async Task<IActionResult> Test()
         {
             var data = await _orderBookStore.GetAllOrderBook();
-            var rs = await _binanceService.GetAccoutInfoAsync();
-            if (rs.Succeeded && rs.Data is BinanceAccountInfo accountInfo)
-            {
-                BinanceAccountInfo balance = accountInfo;
-                var btcBalance = balance.Balances.FirstOrDefault(b => b.Asset == "BTC");
-                var usdtBalance = balance.Balances.FirstOrDefault(b => b.Asset == "USDT");
-                return Ok(new {btcBalance, usdtBalance }); 
-            }
-            _logger.LogInformation("Test endpoint hit at {Time}", DateTime.UtcNow);
+            _logger.LogWarning("Retrieved {Count} order books", data.Count());
             return Ok(data);
         }
       
@@ -53,7 +37,7 @@ namespace BotTradingCrypto.WebAPI.Controllers
         {
             try
             {
-                await _binanceService.CancelAllOrderAsync("BTCUSDT");
+                await _binanceService.CancelAllOrderAsync("TRUMPUSDT");
                 return Ok();
             }
             catch (Exception ex)
@@ -63,11 +47,11 @@ namespace BotTradingCrypto.WebAPI.Controllers
             }
         }
         [HttpGet("TrackingPrice")]
-        public async Task<IActionResult> TrackingPrice()
+        public async Task<IActionResult> TrackingPrice([FromQuery]string symbol)
         {
             try
             {
-                await _binanceService.TrackingTickerAsync();
+                await _binanceService.TrackingTickerAsync(symbol);
                 return Ok();
             }
             catch (Exception ex)
@@ -76,12 +60,27 @@ namespace BotTradingCrypto.WebAPI.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-        [HttpPost("StartBot")]
-        public async Task<IActionResult> StartBot([FromBody]OrderBookDetail orderBookDetail)
+
+        [HttpGet("UnsubscribeMiniTicker")]
+        public async Task<IActionResult> UnsubscribeMiniTickerAsync([FromQuery] string Id)
         {
             try
             {
-                await _gridTradingService.StartGridTradingAsync("BTCUSDT", orderBookDetail);
+                await _binanceService.UnsubscribeMiniTickerAsync(int.Parse(Id));
+                return Ok("Unsubscribed successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error");
+            }
+        }
+        [HttpPost("StartBot")]
+        public async Task<IActionResult> StartBot([FromBody]OrderBookDetail orderBookDetail, [FromQuery] string symbol)
+        {
+            try
+            {
+                // "BTCUSDT"
+                await _gridTradingService.StartGridTradingAsync(symbol, orderBookDetail);
                 return Ok("Grid trading started successfully.");
             }
             catch (Exception ex)
@@ -90,16 +89,33 @@ namespace BotTradingCrypto.WebAPI.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-        [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        [HttpGet("GetTickSize")]
+        public async Task<IActionResult> GetTickSize([FromQuery] string symbol)
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            try
             {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+                var tickSize = await _binanceService.GetTickSize(symbol);
+                return Ok(new { TickSize = tickSize });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tick size for symbol {Symbol}", symbol);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+        [HttpGet("GetStepSize")]
+        public async Task<IActionResult> GetStepSize([FromQuery] string symbol)
+        {
+            try
+            {
+                var stepSize = await _binanceService.GetStepSize(symbol);
+                return Ok(new { StepSize = stepSize });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tick size for symbol {Symbol}", symbol);
+                return StatusCode(500, "Internal server error");
+            }
         }
     }
 }

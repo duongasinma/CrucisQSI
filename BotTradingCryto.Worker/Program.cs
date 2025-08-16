@@ -12,7 +12,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 });
 
 
-builder.Services.AddHostedService<Worker>();
+//builder.Services.AddHostedService<Worker>();
 builder.Services.AddSingleton<IBinanceService, BinanceService>();
 builder.Services.AddSingleton<ISpotGridTradingService, SpotGridTradingService>();
 // Configure Binance client

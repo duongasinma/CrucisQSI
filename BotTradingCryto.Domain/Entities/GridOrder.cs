@@ -17,6 +17,7 @@ namespace BotTradingCrypto.Domain
         public double Quantity { get; set; }
         public int GridLevel { get; set; }
         public double GapPercent { get; set; }
+        public int NumberFilled { get; set; } = 1;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public OrderStatus Status { get; set; } = OrderStatus.New;
 
